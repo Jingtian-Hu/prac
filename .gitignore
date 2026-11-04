@@ -1,0 +1,5 @@
+.DS_Store
+baseline/
+data/dev/
+figures/dev/
+.Rhistory

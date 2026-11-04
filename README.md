@@ -1,0 +1,12 @@
+# Does bagging bananas in paper accelerate peel browning?
+
+Matched-pair randomized experiment, GU4724 Experimental Research (Columbia, Fall 2026). Pre-analysis plan: `pap.md`. OSF registration text: `osf_preregistration.md`.
+
+- `R/03_measure_photos.R` — percent brown and brown_index from photos (parameters frozen at the registered commit)
+- `R/02_randomize.R` — within-hand pairing and random assignment (seed 20261104)
+- `R/04_analysis.R` — paired estimate and randomization inference over all 2^16 assignments
+- `data/baseline.csv`, `data/brown_from_photos_v1.csv`, `data/photos/day0/` — Day-0 data; `rename_log.csv` maps original photo files to banana ids
+- `data/assignment.csv` — written after registration by `02_randomize.R`
+
+## Deviations
+(none yet)
