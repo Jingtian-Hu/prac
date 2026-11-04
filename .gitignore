@@ -3,3 +3,6 @@ baseline/
 data/dev/
 figures/dev/
 .Rhistory
+practicum.tex
+practicum_files/
+*.log

@@ -1,0 +1,238 @@
+---
+title: "Does Bagging Bananas in Paper Accelerate Peel Browning?"
+subtitle: "GU4724 Practicum Experiment"
+author: "Jingtian Hu"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.align = "center", fig.width = 6, fig.height = 4)
+library(randomizr)
+library(ri2)
+library(estimatr)
+library(dplyr)
+library(broom)
+library(ggplot2)
+library(knitr)
+
+rm(list = ls())
+PRIMARY_DAY <- 3
+
+theme_set(theme_bw(base_size = 11) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, size = 9)))
+fmt   <- function(x, k = 1) formatC(x, format = "f", digits = k)
+fmt_p <- function(p) if (p < 0.001) "< 0.001" else paste("=", formatC(p, format = "f", digits = 3))
+```
+
+```{r data}
+# Assignment (written by R/02_randomize.R) and Day-0 percent brown (frozen R/03_measure_photos.R)
+a <- read.csv("data/assignment.csv")
+a$brown0 <- a$brown0_v1
+
+# Day-3 outcomes from the frozen measurement script
+photos <- read.csv("data/brown_from_photos_v1.csv")
+day3   <- photos[photos$day == PRIMARY_DAY, c("id", "brown_pct", "brown_index")]
+
+SIMULATED <- nrow(day3) == 0
+if (SIMULATED) {
+  # Placeholder until the Day-3 photos are processed: constant 10 pp effect, bounded 0-100
+  set.seed(1)
+  pair_shift <- rnorm(16, 0, 10)[a$pair]
+  y0 <- a$brown0 + 15 + pair_shift + rnorm(nrow(a), 0, 8)
+  day3 <- data.frame(id = a$id, brown_pct = pmin(100, pmax(0, y0 + 10 * a$Z)))
+  day3$brown_index <- day3$brown_pct / 2
+}
+d <- merge(a, day3, by = "id")
+d$Y <- d$brown_pct
+
+# Blind 1-7 ripeness grades of the Day-3 photos (secondary outcome), if available
+if (file.exists("data/blind_grades.csv")) d <- merge(d, read.csv("data/blind_grades.csv"), by = "id")
+
+d$condition <- factor(ifelse(d$Z == 1, "Paper bag", "Open air"), levels = c("Open air", "Paper bag"))
+d$brown0_c  <- d$brown0 - mean(d$brown0)
+d <- d[order(d$pair, d$Z), ]
+sim_tag <- if (SIMULATED) "SIMULATED DATA" else NULL
+```
+
+```{r estimation}
+# Difference in means within pairs (FEDAI eq. 3.10) and its standard error
+dim_out <- difference_in_means(Y ~ Z, blocks = pair, data = d)
+ate <- unname(coef(dim_out)["Z"])
+se  <- dim_out$std.error
+
+# Randomization inference over all 2^16 = 65,536 within-pair assignments
+decl <- declare_ra(blocks = d$pair)
+perm <- obtain_permutation_matrix(decl, maximum_permutations = 70000)
+ri_out <- conduct_ri(Y ~ Z, declaration = decl, assignment = "Z", sharp_hypothesis = 0,
+                     data = d, permutation_matrix = perm)
+p_two <- summary(ri_out)$two_tailed_p_value
+
+# 95% CI: impute potential outcomes under a constant effect equal to the estimate (FEDAI ch. 3)
+ri_ci <- conduct_ri(Y ~ Z, declaration = decl, assignment = "Z", sharp_hypothesis = ate,
+                    data = d, permutation_matrix = perm)
+ci <- unname(quantile(ri_ci$sims_df$est_sim, c(0.025, 0.975)))
+
+# Covariate adjustment (secondary): pair fixed effects + centered Day-0 percent brown
+cov_out <- lm_robust(Y ~ Z + brown0_c, fixed_effects = ~ pair, data = d)
+ri_cov  <- conduct_ri(Y ~ Z + brown0_c, declaration = decl, assignment = "Z", sharp_hypothesis = 0,
+                      data = d, permutation_matrix = perm)
+
+# Balance check: Day-0 percent brown should not differ by assignment
+ri_bal <- conduct_ri(brown0 ~ Z, declaration = decl, assignment = "Z", sharp_hypothesis = 0,
+                     data = d, permutation_matrix = perm)
+bal_diff <- unname(coef(difference_in_means(brown0 ~ Z, blocks = pair, data = d))["Z"])
+bal_p    <- summary(ri_bal)$two_tailed_p_value
+
+m0 <- mean(d$Y[d$Z == 0]); m1 <- mean(d$Y[d$Z == 1])
+```
+
+```{r banner, results="asis"}
+if (SIMULATED) cat("\\begin{center}\\fbox{\\textbf{DRAFT: Day-3 outcomes are SIMULATED placeholders. Every number below will change.}}\\end{center}\n")
+```
+
+Pre-analysis plan: <https://osf.io/ev87w/>. Data and code: <https://github.com/Jingtian-Hu/prac>.
+
+## Motivation and Hypothesis
+
+A common kitchen tip says that putting bananas in a paper bag makes them ripen faster: bananas emit ethylene, and the bag is supposed to keep the gas near the fruit. This experiment tests whether the tip holds for single bananas at room temperature.
+
+**Hypothesis: a banana stored alone in a closed kraft paper bag shows a larger share of brown peel after three days than an uncovered banana in the same room.** The test is two-sided.
+
+## Empirical Strategy
+
+The subjects are 32 bananas bought from one store in six hands (18 conventional, 14 organic). Each banana is one unit; the hands were separated at the crown before treatment.
+
+Before assignment, every banana was photographed on both sides, and a frozen image-analysis script (`R/03_measure_photos.R`) measured its percent brown peel area. Bananas were sorted by this baseline score within hand and adjacent bananas were paired, giving 16 matched pairs; leftover bananas from odd-sized hands were paired across hands within organic status. Within each pair, one banana was assigned to the paper bag with probability 1/2 using `randomizr::block_ra()` (seed 20261104). The assignment was run after the plan was registered.
+
+Treated bananas were sealed individually in kraft paper bags; control bananas lay uncovered. Both members of a pair shared a slot, so local conditions such as light or drafts are balanced within pairs. No banana was touched between bagging and measurement.
+
+The primary outcome is the percent of visible peel area that is brown on Day 3, averaged over the two photographed sides and computed by the same frozen script used at baseline. File names carry only banana IDs, so the measurement is identical for both arms.
+
+## Core Assumptions
+
+**Random assignment.** Assignment was generated by code within each pair. As a check, the difference in baseline percent brown between arms is `r fmt(bal_diff)` percentage points, with a randomization-inference p-value of `r fmt(bal_p, 3)`.
+
+**Non-interference.** Ethylene from one banana could reach others. Pairs share a slot, so any spillover from a bagged banana onto its uncovered partner would raise the control outcome and bias the estimate toward zero.
+
+**Excludability.** The bag changes ethylene, humidity, and light together, so the experiment identifies the effect of the whole bundle. Outcomes are measured by the same script for both arms.
+
+**Compliance and attrition.** `r if (SIMULATED) "[To be completed after Day 3: number of torn bags and lost bananas, if any.]" else "[Describe bag condition and any losses here.]"`
+
+## Results
+
+```{r fig-distribution, fig.height=4.5}
+ggplot(d, aes(Y)) +
+  geom_histogram(binwidth = 5, boundary = 0, fill = "grey70", colour = "black") +
+  facet_wrap(~ condition, ncol = 1) +
+  labs(x = "Percent brown peel area on Day 3", y = "Frequency",
+       title = "Distribution of Outcomes by Condition", subtitle = sim_tag)
+```
+
+Mean brown peel area on Day 3 is `r fmt(m1)`% for bagged bananas and `r fmt(m0)`% for uncovered bananas.
+
+```{r results-table}
+tab <- data.frame(
+  Estimator = c("Difference in means within pairs", "Adding Day-0 percent brown (secondary)"),
+  ATE = c(ate, coef(cov_out)["Z"]),
+  SE  = c(se, cov_out$std.error["Z"]),
+  CI  = c(sprintf("[%s, %s]", fmt(ci[1]), fmt(ci[2])),
+          sprintf("[%s, %s]", fmt(cov_out$conf.low["Z"]), fmt(cov_out$conf.high["Z"]))),
+  p   = sub("^= ", "", sapply(c(p_two, summary(ri_cov)$two_tailed_p_value), fmt_p))
+)
+kable(tab, digits = 2, row.names = FALSE, align = "lrrrr",
+      col.names = c("Estimator", "ATE (pp)", "SE", "95% CI", "Two-sided RI p"),
+      caption = "Effect of a paper bag on percent brown peel area on Day 3 (16 pairs, 32 bananas)")
+```
+
+The estimated ATE is `r fmt(ate)` percentage points (SE `r fmt(se)`). The 95% confidence interval is [`r fmt(ci[1])`, `r fmt(ci[2])`], obtained by imputing the full schedule of potential outcomes under a constant effect equal to the estimate. Under the sharp null hypothesis of no effect for any banana, `r fmt(100 * p_two, 2)`% of the 65,536 possible assignments produce an estimate at least as large in absolute value as the one observed (two-sided p `r fmt_p(p_two)`). `r if (SIMULATED) "[Interpretation to be written after Day 3.]"`
+
+```{r fig-coppock, fig.height=4.8}
+summ <- d %>%
+  group_by(condition) %>%
+  do(tidy(lm_robust(Y ~ 1, data = .))) %>%
+  mutate(Y = estimate)
+set.seed(343)
+d$xj <- as.numeric(d$condition) + runif(nrow(d), -0.15, 0.15)
+ggplot(summ, aes(as.numeric(condition), Y)) +
+  geom_line(data = d, aes(xj, Y, group = pair), colour = "grey85") +
+  geom_point(data = d, aes(xj, Y), alpha = 0.3) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0) +
+  scale_x_continuous(breaks = 1:2, labels = levels(d$condition)) +
+  ylab("Percent brown peel area on Day 3") +
+  ggtitle("Percent Brown Peel on Day 3 by Condition",
+          subtitle = paste(c(sim_tag, "Grey lines join the two bananas of a pair; black points are means with 95% CIs"),
+                           collapse = "\n")) +
+  theme(axis.title.x = element_blank())
+```
+
+```{r fig-ri}
+p_ri <- plot(ri_out)
+p_ri$layers[[1]] <- geom_histogram(bins = 60)   # ri2 defaults to sims/20 bins
+p_ri + ggtitle("Randomization Inference, All 65,536 Assignments",
+               subtitle = paste(c(sim_tag, sprintf("Observed ATE = %s; two-sided p %s", fmt(ate), fmt_p(p_two))),
+                                collapse = "\n")) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5, size = 9),
+        legend.position = "bottom")
+```
+
+## Conclusion
+
+`r if (SIMULATED) "[To be written after Day 3: what the estimate implies for the paper-bag tip, its precision, and limitations.]"`
+
+\newpage
+
+## Appendix
+
+### Within-pair differences
+
+```{r fig-pairs, fig.height=4.8}
+tr <- d[d$Z == 1, ]; co <- d[d$Z == 0, ]
+tr <- tr[order(tr$pair), ]; co <- co[order(co$pair), ]
+pd <- data.frame(pair = factor(tr$pair), diff = tr$Y - co$Y)
+pd$pair <- factor(pd$pair, levels = pd$pair[order(pd$diff)])
+ggplot(pd, aes(diff, pair)) +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  annotate("rect", xmin = ci[1], xmax = ci[2], ymin = -Inf, ymax = Inf, alpha = 0.15) +
+  geom_vline(xintercept = ate) +
+  geom_point(size = 2) +
+  labs(x = "Treated minus control banana, percent brown on Day 3", y = "Pair",
+       title = "Within-Pair Differences",
+       subtitle = paste(c(sim_tag, "Solid line: estimated ATE; shaded band: 95% CI"), collapse = "\n"))
+```
+
+### Percent brown on Day 0 and Day 3
+
+```{r fig-day0-day3, fig.width=5.5, fig.height=4.5}
+long <- rbind(data.frame(day = "Day 0", condition = d$condition, Y = d$brown0),
+              data.frame(day = "Day 3", condition = d$condition, Y = d$Y))
+s5 <- long %>% group_by(day, condition) %>%
+  summarise(m = mean(Y), s = sd(Y) / sqrt(n()), .groups = "drop")
+dodge <- position_dodge(width = 0.2)
+ggplot(s5, aes(day, m, group = condition, shape = condition, linetype = condition)) +
+  geom_line(position = dodge) +
+  geom_errorbar(aes(ymin = m - 1.96 * s, ymax = m + 1.96 * s), width = 0, linetype = "solid", position = dodge) +
+  geom_point(size = 3, position = dodge, fill = "white") +
+  scale_shape_manual(values = c(16, 21)) +
+  labs(x = NULL, y = "Percent brown peel area", shape = NULL, linetype = NULL,
+       title = "Mean Percent Brown by Condition, Day 0 and Day 3",
+       subtitle = paste(c(sim_tag, "Means with 95% CIs; Day 0 measured before random assignment"), collapse = "\n")) +
+  theme(legend.position = "bottom")
+```
+
+### Data
+
+```{r data-table}
+kable(d[order(d$id), c("id", "bunch", "organic", "pair", "Z", "brown0", "Y")],
+      digits = 1, row.names = FALSE,
+      col.names = c("ID", "Hand", "Organic", "Pair", "Bagged", "Day-0 % brown", "Day-3 % brown"))
+```
+
+### R code
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
