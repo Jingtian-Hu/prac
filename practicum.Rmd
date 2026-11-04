@@ -55,6 +55,12 @@ d$condition <- factor(ifelse(d$Z == 1, "Paper bag", "Open air"), levels = c("Ope
 d$brown0_c  <- d$brown0 - mean(d$brown0)
 d <- d[order(d$pair, d$Z), ]
 sim_tag <- if (SIMULATED) "SIMULATED DATA" else NULL
+
+# Measurement check on the Day-0 photos: algorithm vs. the researcher's 1-5 eye ratings
+eye <- read.csv("data/eye_vs_photo_day0.csv")
+rho_photo  <- cor(eye$eye_rating, eye$brown_pct, method = "spearman")
+eye_banana <- aggregate(cbind(eye_rating, brown_pct) ~ id, eye, mean)
+rho_banana <- cor(eye_banana$eye_rating, eye_banana$brown_pct, method = "spearman")
 ```
 
 ```{r estimation}
@@ -97,29 +103,47 @@ Pre-analysis plan: <https://osf.io/ev87w/>. Data and code: <https://github.com/J
 
 ## Motivation and Hypothesis
 
-A common kitchen tip says that putting bananas in a paper bag makes them ripen faster: bananas emit ethylene, and the bag is supposed to keep the gas near the fruit. This experiment tests whether the tip holds for single bananas at room temperature.
+A common kitchen tip says that a paper bag makes bananas ripen faster. Bananas release ethylene, a gas that speeds up ripening, and the bag is supposed to keep it close to the fruit. Most versions of the tip refer to a whole bunch in one bag. I test the simpler case of a single banana per bag.
 
-**Hypothesis: a banana stored alone in a closed kraft paper bag shows a larger share of brown peel after three days than an uncovered banana in the same room.** The test is two-sided.
+**Hypothesis: a banana sealed alone in a kraft paper bag has more brown peel after three days than an uncovered banana in the same room.** I use a two-sided test.
 
-## Empirical Strategy
+## Design
 
-The subjects are 32 bananas bought from one store in six hands (18 conventional, 14 organic). Each banana is one unit; the hands were separated at the crown before treatment.
+**Subjects.** 32 bananas bought at one store in six hands: three conventional hands (18 bananas) and three organic hands (14). The hands were cut apart at the crown so that each banana is a separate unit.
 
-Before assignment, every banana was photographed on both sides, and a frozen image-analysis script (`R/03_measure_photos.R`) measured its percent brown peel area. Bananas were sorted by this baseline score within hand and adjacent bananas were paired, giving 16 matched pairs; leftover bananas from odd-sized hands were paired across hands within organic status. Within each pair, one banana was assigned to the paper bag with probability 1/2 using `randomizr::block_ra()` (seed 20261104). The assignment was run after the plan was registered.
+**Blocking and randomization.** Every banana was photographed before assignment, and its baseline percent brown was measured with the method described below. Within each hand, bananas were sorted by baseline percent brown and adjacent bananas were paired. Hands with an odd number of bananas left one banana over; these four were paired with each other within organic status. This gives 16 pairs. In each pair, `randomizr::block_ra()` assigned one banana to the bag with probability 1/2 (seed 20261104). The assignment was run after the plan was registered. Appendix A2 shows baseline browning by pair and arm.
 
-Treated bananas were sealed individually in kraft paper bags; control bananas lay uncovered. Both members of a pair shared a slot, so local conditions such as light or drafts are balanced within pairs. No banana was touched between bagging and measurement.
+**Treatment and setting.** Treated bananas were sealed one per kraft paper bag, with the top folded over. Control bananas lay uncovered. All 32 sat on the floor of one room, each on its own white sheet, with the two members of a pair placed side by side in the same slot (Appendix A1). No banana was touched between bagging and measurement.
 
-The primary outcome is the percent of visible peel area that is brown on Day 3, averaged over the two photographed sides and computed by the same frozen script used at baseline. File names carry only banana IDs, so the measurement is identical for both arms.
+**Outcome.** The primary outcome is percent brown peel area on Day 3, measured from photographs as described next. Secondary outcomes are a threshold-free brown index from the same photos and a 1-7 ripeness grade given by a person who did not know the assignment.
+
+## Measurement
+
+Each banana was photographed on both sides, on a white sheet, under the same desk lamp, with the phone at a fixed height and HDR turned off. This was done on Day 0, before assignment, and again on Day 3. Photo files are named by banana ID and side only, and the same script processes every photo, so treated and control bananas are measured the same way.
+
+`R/03_measure_photos.R` converts each photo to hue, saturation and brightness (HSV) and classifies pixels in three steps.
+
+1. **Peel.** Pixels with saturation above 0.4 and hue below 0.2 (yellow to orange), plus very dark pixels (brightness below 0.3) next to them, which are the black spots. The outer 4% of the frame is cropped and the mask is eroded by 4 pixels to remove the edge of the fruit.
+2. **Local reference.** For each pixel, the brightness of the brightest clean peel within roughly 1 cm. The lamp lights one side of the banana more than the other, so a single global brightness threshold labels shaded yellow peel as brown. Comparing each pixel with nearby clean peel removes most of this shading.
+3. **Brown.** A peel pixel is brown if its brightness is below 75% of the local reference and its hue is below 0.115, or if its hue is below 0.09 (reddish brown), or if its brightness is below 0.3.
+
+Percent brown for a banana is the share of peel pixels classified brown, averaged over its two sides:
+
+$$
+Y_i = \frac{1}{2} \sum_{s \in \{a, b\}} 100 \times \frac{\#\{\text{brown pixels in photo } (i, s)\}}{\#\{\text{peel pixels in photo } (i, s)\}}
+$$
+
+The parameters were tuned on the 64 Day-0 photos before assignment and frozen in the registered commit; they were not changed afterwards. Appendix A3 shows the classification on six photos. To check the method, I rated each Day-0 photo by eye on a 1-5 scale. The Spearman correlation between my ratings and the algorithm is `r fmt(rho_photo, 2)` across photos and `r fmt(rho_banana, 2)` across bananas (Appendix A4). The ratings were not blind, so they only show that the algorithm roughly tracks what the eye sees. The main weakness is a floor of about 5-15% on bananas with almost no spots, caused by lamp shadows along the ridges of the peel. The floor is the same in both arms, so it adds noise but not bias.
 
 ## Core Assumptions
 
-**Random assignment.** Assignment was generated by code within each pair. As a check, the difference in baseline percent brown between arms is `r fmt(bal_diff)` percentage points, with a randomization-inference p-value of `r fmt(bal_p, 3)`.
+**Random assignment.** Assignment was generated by code within each pair. The difference in baseline percent brown between arms is `r fmt(bal_diff)` percentage points (randomization-inference p = `r fmt(bal_p, 3)`).
 
-**Non-interference.** Ethylene from one banana could reach others. Pairs share a slot, so any spillover from a bagged banana onto its uncovered partner would raise the control outcome and bias the estimate toward zero.
+**Non-interference.** Ethylene from one banana could reach its neighbours, especially the uncovered partner in the same slot. Spillover from bagged to uncovered bananas would raise control outcomes and shrink the estimate toward zero.
 
-**Excludability.** The bag changes ethylene, humidity, and light together, so the experiment identifies the effect of the whole bundle. Outcomes are measured by the same script for both arms.
+**Excludability.** A bag changes ethylene concentration, humidity and light at the same time, so the estimate is the effect of the bag as a whole, not of ethylene alone. Measurement is identical across arms.
 
-**Compliance and attrition.** `r if (SIMULATED) "[To be completed after Day 3: number of torn bags and lost bananas, if any.]" else "[Describe bag condition and any losses here.]"`
+**Compliance and attrition.** `r if (SIMULATED) "[After Day 3: torn bags and lost bananas, if any.]" else "[Describe bag condition and any losses here.]"`
 
 ## Results
 
@@ -147,7 +171,7 @@ kable(tab, digits = 2, row.names = FALSE, align = "lrrrr",
       caption = "Effect of a paper bag on percent brown peel area on Day 3 (16 pairs, 32 bananas)")
 ```
 
-The estimated ATE is `r fmt(ate)` percentage points (SE `r fmt(se)`). The 95% confidence interval is [`r fmt(ci[1])`, `r fmt(ci[2])`], obtained by imputing the full schedule of potential outcomes under a constant effect equal to the estimate. Under the sharp null hypothesis of no effect for any banana, `r fmt(100 * p_two, 2)`% of the 65,536 possible assignments produce an estimate at least as large in absolute value as the one observed (two-sided p `r fmt_p(p_two)`). `r if (SIMULATED) "[Interpretation to be written after Day 3.]"`
+The estimated ATE is `r fmt(ate)` percentage points (SE `r fmt(se)`). The 95% confidence interval, from imputing all potential outcomes under a constant effect equal to the estimate, is [`r fmt(ci[1])`, `r fmt(ci[2])`]. Under the sharp null of no effect for any banana, `r fmt(100 * p_two, 2)`% of the 65,536 possible assignments give an estimate at least as large in absolute value as the observed one (two-sided p `r fmt_p(p_two)`). `r if (SIMULATED) "[Interpretation after Day 3.]"`
 
 ```{r fig-coppock, fig.height=4.8}
 summ <- d %>%
@@ -182,15 +206,56 @@ p_ri + ggtitle("Randomization Inference, All 65,536 Assignments",
 
 ## Conclusion
 
-`r if (SIMULATED) "[To be written after Day 3: what the estimate implies for the paper-bag tip, its precision, and limitations.]"`
+`r if (SIMULATED) "[After Day 3: what the estimate means for the paper-bag tip, how precise it is, and what limits it.]"`
 
 \newpage
 
 ## Appendix
 
-### Within-pair differences
+### A1. Experimental setup
 
-```{r fig-pairs, fig.height=4.8}
+```{r fig-setup, out.width="55%", fig.cap="The 16 slots on Day 0 after bagging. Each slot holds one pair side by side; bagged bananas are inside the folded paper bags."}
+include_graphics("figures/setup_day0.jpg")
+```
+
+### A2. Baseline browning by pair
+
+```{r fig-design, fig.width=7, fig.height=3.8}
+lab <- d %>% group_by(pair) %>%
+  summarise(group = if (n_distinct(bunch) > 1) "Cross-hand" else paste("Hand", first(bunch)), .groups = "drop")
+dd <- merge(d, lab, by = "pair")
+ggplot(dd, aes(factor(pair), brown0, shape = condition)) +
+  geom_line(aes(group = pair), colour = "grey60") +
+  geom_point(size = 2.5, fill = "white") +
+  scale_shape_manual(values = c(16, 21)) +
+  facet_grid(~ group, scales = "free_x", space = "free_x") +
+  labs(x = "Pair", y = "Day-0 percent brown", shape = NULL,
+       title = "Day-0 Percent Brown by Pair and Assigned Condition") +
+  theme(legend.position = "bottom", strip.text = element_text(size = 8))
+```
+
+### A3. Measurement examples
+
+```{r fig-overlay, out.width="100%", fig.cap="Classification on six Day-0 photos. Red: pixels classified brown. Blue: not peel. Titles give banana, side and percent brown."}
+include_graphics("figures/check_final_sheet.png")
+```
+
+### A4. Algorithm versus eye ratings (Day 0)
+
+```{r fig-eye, fig.height=3.8}
+ggplot(eye, aes(eye_rating, brown_pct)) +
+  geom_jitter(width = 0.06, height = 0, alpha = 0.6,
+              aes(shape = factor(organic, labels = c("Conventional", "Organic")))) +
+  geom_smooth(method = "lm", se = FALSE, colour = "black", linewidth = 0.5) +
+  scale_shape_manual(values = c(16, 1)) +
+  labs(x = "Eye rating (1 = almost no spots, 5 = large brown areas)", y = "Percent brown (algorithm)",
+       shape = NULL, title = sprintf("64 Day-0 Photos: Spearman rho = %s", fmt(rho_photo, 2))) +
+  theme(legend.position = "bottom")
+```
+
+### A5. Within-pair differences
+
+```{r fig-pairs, fig.height=4.5}
 tr <- d[d$Z == 1, ]; co <- d[d$Z == 0, ]
 tr <- tr[order(tr$pair), ]; co <- co[order(co$pair), ]
 pd <- data.frame(pair = factor(tr$pair), diff = tr$Y - co$Y)
@@ -205,9 +270,9 @@ ggplot(pd, aes(diff, pair)) +
        subtitle = paste(c(sim_tag, "Solid line: estimated ATE; shaded band: 95% CI"), collapse = "\n"))
 ```
 
-### Percent brown on Day 0 and Day 3
+### A6. Percent brown on Day 0 and Day 3
 
-```{r fig-day0-day3, fig.width=5.5, fig.height=4.5}
+```{r fig-day0-day3, fig.width=5.5, fig.height=4.2}
 long <- rbind(data.frame(day = "Day 0", condition = d$condition, Y = d$brown0),
               data.frame(day = "Day 3", condition = d$condition, Y = d$Y))
 s5 <- long %>% group_by(day, condition) %>%
@@ -224,7 +289,7 @@ ggplot(s5, aes(day, m, group = condition, shape = condition, linetype = conditio
   theme(legend.position = "bottom")
 ```
 
-### Data
+### A7. Data
 
 ```{r data-table}
 kable(d[order(d$id), c("id", "bunch", "organic", "pair", "Z", "brown0", "Y")],
@@ -232,7 +297,7 @@ kable(d[order(d$id), c("id", "bunch", "organic", "pair", "Z", "brown0", "Y")],
       col.names = c("ID", "Hand", "Organic", "Pair", "Bagged", "Day-0 % brown", "Day-3 % brown"))
 ```
 
-### R code
+### A8. R code
 
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
