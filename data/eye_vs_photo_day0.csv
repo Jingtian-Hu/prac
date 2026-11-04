@@ -1,5 +1,5 @@
 "id","side","bunch","organic","original","eye_rating","brown_pct","brown_index","hue","note"
-1,"a",1,0,"IMG_8239",3.5,18.5341607864584,9.51271155321548,0.116496717706059,"eye_rating: Claude 看照片打的 1-5 分（1 几乎无斑, 5 大面积褐变），非盲评；brown_pct/brown_index: 03_measure_photos.R v1"
+1,"a",1,0,"IMG_8239",3.5,18.5341607864584,9.51271155321548,0.116496717706059,"eye_rating: 1-5 visual rating of the photo by the analyst (1 = almost no spots, 5 = large brown areas), not blind; brown_pct/brown_index from 03_measure_photos.R v1"
 1,"b",1,0,"IMG_8240",4,9.05067877096645,6.08487404426777,0.120064669604804,""
 2,"a",1,0,"IMG_8241",3,17.8352087043624,8.6880700560706,0.121988262330509,""
 2,"b",1,0,"IMG_8242",3,9.44977024991222,6.40772683620641,0.11832453699345,""

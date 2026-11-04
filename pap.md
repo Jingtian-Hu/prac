@@ -42,7 +42,7 @@ The treatment is a bundle. A paper bag changes ethylene concentration, humidity,
 Implemented in `R/00_pick_pilot.R` (seed `20261103`), `R/03_measure_photos.R`, and `R/02_randomize.R` (seed `20261104`). Steps, in order:
 
 1. **Label** each banana 01–32 on the stem and record its hand (`bunch` = 1–6).
-2. **Baseline** (Day 0, before assignment): photos of both sides and weight (g), recorded in `data/baseline.csv`. A 1–7 color grade is also recorded, for description only.
+2. **Baseline** (Day 0, before assignment): photos of both sides; hand and organic status recorded in `data/baseline.csv` (weight only if a scale is available).
 3. **No pilot.** `00_pick_pilot.R` is not used.
 4. **Measurement calibration (v1, final).** The parameters of `03_measure_photos.R` were set on the Day-0 photos of all 32 bananas, checked against the researcher's 1–5 visual ratings of the 64 photos (Spearman 0.78; `data/eye_vs_photo_day0.csv`), and frozen at the registered commit. `brown0_v1` is the Day-0 percent brown from this script.
 5. **Within-hand pairing** (`02_randomize.R`). Within each hand, sort the bananas by `brown0_v1`, then by photo-measured greenness (`hue0_v1`, the mean hue of non-brown peel; this breaks ties among bananas with no spots), then `weight0`, and pair adjacent bananas. In each of the four hands with an odd count, one banana is set aside at random. The four set-aside bananas are paired across hands within organic status (conventional with conventional, organic with organic), sorted by `brown0_v1`. The result is 16 pairs.
