@@ -8,7 +8,7 @@ PRIMARY_DAY <- 3   # pre-registered: outcomes are measured once, on Day 3
 
 a <- read.csv("data/assignment.csv")
 b <- read.csv("data/baseline.csv")
-o <- read.csv("data/outcomes.csv")                 # id, day, brown_pct, brown_index, grade_blind
+o <- read.csv("data/brown_from_photos_v1.csv")     # id, day, brown_pct, brown_index (R/03_measure_photos.R)
 d <- merge(a, b[, setdiff(names(b), c("bunch", "organic"))], by = "id")
 d <- merge(d, setNames(o[o$day == PRIMARY_DAY, c("id", "brown_pct")], c("id", "Y")), by = "id")
 d$brown0   <- d$brown0_v1                          # Day-0 percent brown from the frozen script
@@ -38,6 +38,6 @@ quantile(sim, c(0.025, 0.975))
 
 # 4. Covariate adjustment (secondary)
 lm_robust(Y ~ Z + brown0_c, fixed_effects = ~ pair, data = d)
-ri_cov <- conduct_ri(Y ~ Z + brown0_c, declaration = decl, sharp_hypothesis = 0,
-                     data = d, permutation_matrix = perm)
+ri_cov <- conduct_ri(Y ~ Z + brown0_c + factor(pair), declaration = decl, sharp_hypothesis = 0,
+                     data = d, permutation_matrix = perm)   # pair fixed effects, as in lm_robust above
 summary(ri_cov)
