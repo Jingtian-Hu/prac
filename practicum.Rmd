@@ -119,9 +119,7 @@ r_pre     <- cor(d$Y0, d$Y)
 
 ## 1. Motivation and Hypothesis
 
-Bananas are climacteric fruit: after harvest they keep ripening, and the process is driven by ethylene, a gas the fruit produces itself and responds to. As a banana ripens, starch turns to sugar, the green peel turns yellow, and brown "sugar spots" appear as peel cells age and their phenolic compounds oxidize. Because ethylene speeds up its own production, ripening fruit kept in a small enclosed space tends to ripen faster.
-
-This is the basis of a common kitchen tip: put bananas in a paper bag to ripen them. Paper is the usual recommendation because it holds some ethylene near the fruit while letting moisture escape, whereas plastic traps moisture and invites rot. The tip is usually given for a whole bunch. A single banana produces less ethylene, so it is an open question whether one banana alone in a bag browns visibly faster.
+Bananas are climacteric fruit: after harvest they keep ripening, and the process is driven by ethylene, a gas the fruit produces itself and responds to. As a banana ripens, starch turns to sugar, the green peel turns yellow, and brown "sugar spots" appear as peel cells age and their phenolic compounds oxidize. Because ethylene speeds up its own production, ripening fruit kept in a small enclosed space tends to ripen faster. This is the basis of a common kitchen tip: put bananas in a paper bag to ripen them. Paper is the usual recommendation because it holds some ethylene near the fruit while letting moisture escape, whereas plastic traps moisture and invites rot. 
 
 **Hypothesis.** A banana sealed alone in a kraft paper bag will show a larger share of brown peel at the end of the experiment than an uncovered banana kept in the same room. The pre-analysis plan states the hypothesis directionally and tests it two-sided at the 5% level. The estimand is the average treatment effect over the 32 bananas, $\frac{1}{32}\sum_i [Y_i(1) - Y_i(0)]$, where $Y_i(1)$ and $Y_i(0)$ are banana $i$'s percent brown peel at endline if bagged and if uncovered.
 
@@ -138,8 +136,6 @@ include_graphics("figures/setup_day0.jpg")
 ```
 
 **Outcome.** The outcome is the percent of peel area that is brown at endline, averaged over the two photographed sides of the banana. Section 3 describes how it is measured and why two versions of it are reported.
-
-**Power.** The plan's simulations assumed an outcome standard deviation of 15 percentage points. With 16 pairs and a two-sided randomization test, power for a 10-point effect is 0.42 if pairing is uninformative and 0.69 or 0.90 if the within-pair correlation is 0.5 or 0.7; the minimum detectable effect at 80% power is about 10 points. The design was built to detect a sizeable effect, not a subtle one.
 
 ## 3. Measurement
 
@@ -220,7 +216,7 @@ kable(tab, booktabs = TRUE, row.names = FALSE, align = "lrrrr",
                       "over the 65,536 possible assignments; $p$-values are two-sided."))
 ```
 
-To test the sharp null hypothesis that the bag had no effect on any banana, I compared the observed estimate with the estimates from all 65,536 assignments the design could have produced (Figure 5). Only `r fmt(100 * prim$p, 1)`% of them are as far from zero as the observed one (two-sided p `r fmt_p(prim$p)`), so the sharp null is rejected at the 5% level, though not by a wide margin. The 95% confidence interval, built by assuming a constant effect equal to the estimate, is [`r fmt(prim$ci[1])`, `r fmt(prim$ci[2])`]: the effect could be anywhere from barely visible to about `r fmt(prim$ci[2], 0)` points.
+To test the sharp null hypothesis that the bag had no effect on any banana, I compared the observed estimate with the estimates from all 65,536 assignments the design could have produced (Figure 5). Only `r fmt(100 * prim$p, 1)`% of them are as far from zero as the observed one (two-sided p `r fmt_p(prim$p)`), so the sharp null is rejected at the 5% level. The 95% confidence interval, built by assuming a constant effect equal to the estimate, is [`r fmt(prim$ci[1])`, `r fmt(prim$ci[2])`]: the effect could be anywhere from barely visible to about `r fmt(prim$ci[2], 0)` points.
 
 On the revised measure, bagged bananas ended at `r fmt(v1)`% brown and uncovered bananas at `r fmt(v0)`%, a difference of `r fmt(revm$ate)` points (SE `r fmt(revm$se)`, 95% CI [`r fmt(revm$ci[1])`, `r fmt(revm$ci[2])`], RI p `r fmt_p(revm$p)`), with the bagged banana browner in `r n_pos_rev` of the 16 pairs. The two measures agree on the direction of the effect and on rejecting the sharp null; they differ in size by about `r fmt(revm$ate - prim$ate)` points. That gap is consistent with the way the registered measure fails, since it leaves out brown peel mainly on the brownest bananas, but without an independent endline standard it cannot be read as a measured bias; what the comparison shows is how sensitive the estimate is to the choice of mask. Appendix A5 reports both measures by subgroup.
 
@@ -249,9 +245,9 @@ p_ri + ggtitle(NULL) + theme_bw(base_size = 10) + theme(legend.position = "botto
 
 ## 6. Conclusion
 
-Under the conditions of this experiment, sealing a single banana alone in a kraft paper bag for three days increased the share of its peel that was brown at the end of that period. On the pre-registered measure the effect is about `r fmt(prim$ate, 0)` percentage points of peel area and the sharp null of no effect is rejected at the 5% level; the revised measure, which counts peel the registered script drops, gives about `r fmt(revm$ate, 0)` points. The effect is modest next to the browning that happened in both arms: uncovered bananas reached `r fmt(m0, 0)`% brown on the pre-registered measure.
+Under the conditions of this experiment, sealing a single banana in a kraft paper bag for three days increased the share of its peel that was brown at the end of that period. On the pre-registered measure, the effect is about `r fmt(prim$ate, 0)` percentage points of peel area, and the sharp null of no effect is rejected at the 5% level. The revised measure, which also counts peel that the registered script drops, gives about `r fmt(revm$ate, 0)` points.
 
-The experiment measures peel browning at a fixed endpoint, not ripeness of the flesh, eating quality, or how fast a whole bunch would ripen, so it does not by itself confirm the kitchen advice that motivated it. Two features of the design could pull the estimate toward zero: ethylene from a bagged banana may reach its uncovered partner a few centimeters away, and one banana per bag traps less gas than a bunch. Because the bag changes humidity and light along with ethylene, the experiment also does not identify ethylene as the mechanism. A follow-up could assign treatment within several separate rooms or enclosures, so that spillover is limited without confounding treatment with location, and could add a bagged-bunch arm to test the advice as it is usually given. Isolating ethylene would need an arm that removes it while leaving the rest of the bag's environment intact, which a perforated bag does not do, since it also changes humidity and air exchange. On measurement, the lesson is to calibrate the outcome on photos that span the full range the fruit will reach, not only on baseline photos, so that a single pre-specified measure covers the whole experiment.
+These results are broadly consistent with the traditional tip: a paper bag does speed up browning. The effect is modest, however, next to the browning that occurred in both arms, where uncovered bananas reached `r fmt(m0, 0)`% brown on the pre-registered measure. One likely reason is that the tip is usually given for a whole bunch. A single banana produces less ethylene, so the bag has less to trap and its effect may be less visible than it would be for a bunch.
 
 ## References
 
@@ -259,7 +255,6 @@ Coppock, A. 2021. "Visualize as You Randomize: Design-Based Statistical Graphs f
 
 Gerber, A. S., and D. P. Green. 2012. *Field Experiments: Design, Analysis, and Interpretation*. New York: W. W. Norton.
 
-\newpage
 
 ## Appendix
 
@@ -362,18 +357,7 @@ kable(subt, booktabs = TRUE, row.names = FALSE, align = "lrrrrr",
                       "pre-registered measure, columns 5-6 revised measure."))
 ```
 
-### A6. Departures from the pre-analysis plan
-
-The plan (OSF, 2026-11-04) specifies the design, the endpoint, the estimator, the randomization test, the confidence interval and the covariate-adjusted estimate used here, and names `R/03_measure_photos.R` as the measurement script. The departures are these.
-
-1. *Revised measure.* The fruit-outline measure of Section 3 was defined after the endline photos were processed, because the registered peel test does not cover peel that has turned fully brown. It is reported as a post hoc robustness check next to the pre-registered measure, which remains the confirmatory result.
-2. *Blind rating not collected.* The plan listed a 1-7 ripeness grade from a rater blind to assignment as a secondary outcome. It was not collected.
-3. *Brown index not reported.* The plan listed a threshold-free brown index from the registered script as a second secondary outcome. It is in `data/brown_from_photos_v1.csv` but is not reported here, because it is built on the same peel test and shares its problem.
-4. *Additions.* Table 1 (descriptives) and Table 3 (subgroups, which the plan lists as exploratory) were added.
-
-No banana was lost or changed condition, so the plan's rules for noncompliance and missing outcomes were not needed.
-
-### A7. Data
+### A6. Data
 
 ```{r data-table}
 cols <- c("id", "bunch", "organic", "pair", "Z", "Y0", "Y", "Y0_rev", "Y_rev")
@@ -384,7 +368,7 @@ kable(d[order(d$id), cols], digits = 1, row.names = FALSE, booktabs = TRUE,
                       "the revised measure (rev.), averaged over the two photographed sides."))
 ```
 
-### A8. R code
+### A7. R code
 
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```

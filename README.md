@@ -1,6 +1,6 @@
 # Does bagging bananas in paper accelerate peel browning?
 
-Matched-pair randomized experiment, GU4724 Experimental Research (Columbia, Fall 2026). Pre-analysis plan: `pap.md`. OSF registration: https://osf.io/ev87w/ (submitted 2026-11-04, registered commit 08dd3de). Write-up: `practicum.Rmd` (knit to PDF).
+Matched-pair randomized experiment, GU4724 Experimental Research (Columbia, Fall 2026). Pre-analysis plan: `pap.md`. OSF registration: https://osf.io/ev87w/ (submitted 2026-11-04, registered commit 08dd3de). Write-up: `practicum.Rmd`; knitted report: `banana_paper_bag_report.pdf`.
 
 ## Scripts (`R/`)
 - `01_power.R` — power simulations for the plan (Section 7 of `pap.md`)
@@ -19,10 +19,9 @@ Matched-pair randomized experiment, GU4724 Experimental Research (Columbia, Fall
 - `photos/day0/`, `photos/day3/` — both sides of every banana (`{id}_{a|b}.jpg`); each folder's `rename_log.csv` maps original photo files to banana ids
 
 ## Write-up
-`practicum.Rmd` computes every number in the report from the files above: measurement method, balance check, results table, randomization inference, figures, and all code in the appendix. A knit takes several minutes because the randomization distribution is enumerated in full several times.
+`banana_paper_bag_report.pdf` is the knitted report. `practicum.Rmd` computes every number in the report from the files above: measurement method, balance check, results table, randomization inference, figures, and all code in the appendix. A knit takes several minutes because the randomization distribution is enumerated in full several times.
 
 ## Departures from the pre-analysis plan
-Listed in full in Appendix A6 of the write-up.
 1. 2026-11-09. Revised measure added (`R/06_alt_measure.R`). The pre-registered peel test does not cover peel that has turned fully brown at Day 3, so a fruit-outline version of the measure is reported as a post hoc robustness check next to the pre-registered measure, which remains the confirmatory result.
 2. The blind 1-7 ripeness grade listed as a secondary outcome was not collected.
 3. The brown_index secondary outcome is in `data/brown_from_photos_v1.csv` but is not reported in the write-up, because it is built on the same peel test.
